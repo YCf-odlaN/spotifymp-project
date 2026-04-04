@@ -1,6 +1,10 @@
 # Spotify Playlists and Medallion Architecture
 The purpose of this project is to use Spotfiy's Million Playlist dataset to implement
-industry standard medallion architecture. 
+industry standard medallion architecture. We looked to implement that logic with simple libraries and upgrading as needed and described.
 
 ## Status
-Bronze layer ingestion in progress
+Bronze layer ingestion complete. Spotify Million Playlist dataset (Download at ____ ) is 5.5gb and consists of 1000 json files, containing 1 million playlist metadata- as well as download source metadata.
+
+We began by trying to implement the medallion architecture framework with minimal libraries, and expanding as needed. In order to keep the data as close as can be to its raw source, we thought to have bronze be 1 table with unflattened JSON. Meaning there are 4 columns: Playlists (Array), info.generated_on, info.slice, info.version. This should allow good reproducibilty, if needed. Our first attempt was with CSV files, however, we hit a bottle neck pretty soon. Two attempts were made with loops -one focusing on using RAM to handle most of the processing and the other was to write dircetly to the drive on every loop iteration. In order to call "to_csv" once, converting data to dataframes and appending to a list would avoid the time costs of writing to the drive. 5.5gbs proved to be too much to naively process on RAM and often led to crashes. Writing to drive on every iteration was successful, however, though the logic was O(n), the time costs of writing led to the 17 minute run time. Dask and Polar libraries can be used to chunk dataframes for processing, which may be considered for analysis purposes, but for this project, working with parquet files would be more efficient. Processing the files and converting to parquet was more than 50% faster compared to the CSV conversion. For now, they will exist inside the bronze directory itself, but will likely need to be put in a subdirectory when scaling to other sources. All parquet files are named one-to-one to their JSON counterpart and the column schema is as intended.
+
+Silver layer in progress...
