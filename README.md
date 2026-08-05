@@ -1,7 +1,5 @@
 # Spotify Playlists and Medallion Architecture
-The purpose of this project is to use Spotifiy's Million Playlist dataset to implement
-industry standard medallion architecture. We looked to implement that logic with simple libraries and upgrading as needed and described.
- 
+
 ## Overview
 This project implements a medallion architecture data pipeline over Spotify's Million Playlist Dataset. The motivation came from work: I watched a data engineering team build and maintain these layers in Databricks and wanted to understand the pattern by implementing it end-to-end myself, starting with minimal tooling and adding complexity only where the data forced it. Bronze holds raw ingested data with no business logic applied, silver cleans and remodels it into properly grained tables, and gold produces the aggregations and features for downstream use. The gold layer is intended to feed a music recommendation system, which is the second half of this project.
  
@@ -11,7 +9,7 @@ Unlike at work, this runs locally and several architectural choices reflect that
 ## Setup
 - PySpark 4.1.1 (Bundles its own spark distribution and Hadoop 3.4.2 jars)
 - JDK 17 Temurin - PySpark 4.x requires Java 17+
-- Windows Only: winutils.exe + hadoop.dll from cdarlint/winutils (3.3.6 
+- Windows Only: winutils.exe + hadoop.dll from cdarlint/winutils (3.3.6 build - newest available, and is stable across 3.3.x/3.3.x)
   - place in C:\hadoop\bin
   - Set HADOOP_HOME =C:\hadoop, add C:\hadoop\bin to PATH
   - Copy hadoop.dll to C:\Windows\System32 
@@ -23,17 +21,21 @@ Bronze layer ingestion complete. Spotify Million Playlist dataset (Download at h
  
 Parquet files was the next choice, as it would be useful to compress file sizes and optimize query search time for analysis. Looping  over data/ in the same manner proved fruitful as the writing took 7 minutes and nicely divided into sub-directories bronze/playlist/ and bronze/sliceinfo.
  
-Apache Spark stood out as the compute engine, since it integrated nicely with python. PSA for Windows users, make sure to have compatible Java version installed as it can mess with pyspark's bundle. I used JDK 17 with spark 4.1.1. Spark has no filesystem code of its own and uses Hadoop's (Unix). Corresponding winutils and execution files were used from https://github.com/cdarlint/winutils 
- 
+Apache Spark stood out as the compute engine, since it integrated nicely with python.
  
 ## Process
 One table contains the slice info, totaling 1000 rows (1000 slices) in the following schema:
+
+'''
 root
  |-- generated_on: string (nullable = true)
  |-- slice: string (nullable = true)
  |-- version: string (nullable = true)
+ '''
  
 The second table in bronze contains the actual playlists, totaling 1 million rows of playlist metadata. The tracks column of arrays will be adjusted in the silver layer:
+
+'''
 root
  |-- name: string (nullable = true)
  |-- collaborative: string (nullable = true)
@@ -56,6 +58,7 @@ root
  |-- duration_ms: long (nullable = true)
  |-- num_artists: long (nullable = true)
  |-- description: string (nullable = true)
- 
+'''
+
 Silver layer in progress...
  
