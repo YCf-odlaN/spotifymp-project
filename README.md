@@ -26,16 +26,16 @@ Apache Spark stood out as the compute engine, since it integrated nicely with py
 ## Process
 One table contains the slice info, totaling 1000 rows (1000 slices) in the following schema:
 
-'''
+~~~
 root
  |-- generated_on: string (nullable = true)
  |-- slice: string (nullable = true)
  |-- version: string (nullable = true)
- '''
+~~~
  
 The second table in bronze contains the actual playlists, totaling 1 million rows of playlist metadata. The tracks column of arrays will be adjusted in the silver layer:
 
-'''
+~~~
 root
  |-- name: string (nullable = true)
  |-- collaborative: string (nullable = true)
@@ -58,7 +58,7 @@ root
  |-- duration_ms: long (nullable = true)
  |-- num_artists: long (nullable = true)
  |-- description: string (nullable = true)
-'''
+~~~
 
 Silver layer in progress...
  
