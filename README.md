@@ -1,34 +1,61 @@
 # Spotify Playlists and Medallion Architecture
-The purpose of this project is to use Spotfiy's Million Playlist dataset to implement
+The purpose of this project is to use Spotifiy's Million Playlist dataset to implement
 industry standard medallion architecture. We looked to implement that logic with simple libraries and upgrading as needed and described.
+ 
+## Overview
+This project implements a medallion architecture data pipeline over Spotify's Million Playlist Dataset. The motivation came from work: I watched a data engineering team build and maintain these layers in Databricks and wanted to understand the pattern by implementing it end-to-end myself, starting with minimal tooling and adding complexity only where the data forced it. Bronze holds raw ingested data with no business logic applied, silver cleans and remodels it into properly grained tables, and gold produces the aggregations and features for downstream use. The gold layer is intended to feed a music recommendation system, which is the second half of this project.
+ 
+### Note
+Unlike at work, this runs locally and several architectural choices reflect that. The layers are directories on disk rather than managed tables in a metastore, so I reference data by path instead of by table name. There is no Unity Catalog- I'm not governing access, though lineage tracking could be useful here later. Spark runs in local mode on a single machine rather than against a cluster. The tables are plain parquet instead of delta, which means no ACID transactions, schema enforcement, or time travel; Delta is a reasonable upgrade path if concurrent writes or versioning become relevant. Transformations run as notebook cells rather than orchestrated jobs for now. 
+
+## Setup
+- PySpark 4.1.1 (Bundles its own spark distribution and Hadoop 3.4.2 jars)
+- JDK 17 Temurin - PySpark 4.x requires Java 17+
+- Windows Only: winutils.exe + hadoop.dll from cdarlint/winutils (3.3.6 
+  - place in C:\hadoop\bin
+  - Set HADOOP_HOME =C:\hadoop, add C:\hadoop\bin to PATH
+  - Copy hadoop.dll to C:\Windows\System32 
 
 ## Status
-Bronze layer ingestion complete. Spotify Million Playlist dataset (Download at ____ ) is 5.5gb and consists of 1000 json files, containing 1 million playlist metadata- as well as download source metadata.
-
-We began by attempting to implement the medallion architecture framework with minimal libraries, and expanding as needed. In order to keep the data as close as can be to its raw source, we thought to have the bronze layer be 2 tables, flattening any JSON. 
-
-One table contains the slice info, totaling 1000 rows (1000 slices) in the following format. These slices contain metadata related to the generation of the data set itself, including the generation date, slice #, and version:
-<img width="2197" height="516" alt="image" src="https://github.com/user-attachments/assets/b9185b52-02b8-4e49-8db9-8c0ec9c3a43b" />
-
+Bronze layer ingestion complete. Spotify Million Playlist dataset (Download at https://www.aicrowd.com/challenges/spotify-million-playlist-dataset-challenge ) is 5.5gb and consists of 1000 json files, containing 1 million playlist metadata- as well as download source metadata. This is stored in data/
+ 
+2 tables seemed appropriate for bronze to correspond to the two objects "info" and "playlist" with key:value pairs in JSON format. Pandas library along with path and json modules were enough to get started, but soon reached a bottleneck when it took 17 minutes to loop, read, and write the data into bronze/ as csv files. There was also no way to use RAM to do one write invocation without crashing. 
+ 
+Parquet files was the next choice, as it would be useful to compress file sizes and optimize query search time for analysis. Looping  over data/ in the same manner proved fruitful as the writing took 7 minutes and nicely divided into sub-directories bronze/playlist/ and bronze/sliceinfo.
+ 
+Apache Spark stood out as the compute engine, since it integrated nicely with python. PSA for Windows users, make sure to have compatible Java version installed as it can mess with pyspark's bundle. I used JDK 17 with spark 4.1.1. Spark has no filesystem code of its own and uses Hadoop's (Unix). Corresponding winutils and execution files were used from https://github.com/cdarlint/winutils 
+ 
+ 
+## Process
+One table contains the slice info, totaling 1000 rows (1000 slices) in the following schema:
+root
+ |-- generated_on: string (nullable = true)
+ |-- slice: string (nullable = true)
+ |-- version: string (nullable = true)
+ 
 The second table in bronze contains the actual playlists, totaling 1 million rows of playlist metadata. The tracks column of arrays will be adjusted in the silver layer:
-<img width="2193" height="521" alt="image" src="https://github.com/user-attachments/assets/9e9d1e93-0b92-4be7-8cd2-ba65c36b1862" />
-
-We attempted to start the bronze layer with CSV files, however, it was soon clear we would need a better way of handling the data, as writing 5gb took a while:
-
-Two attempts were made with loops -one focusing on using RAM to handle most of the processing and the other was to write dircetly to the drive on every loop iteration. 
-
-In order to call "to_csv" once, converting data to dataframes and appending to a list would avoid the time costs of writing to the drive. 5.5gbs proved to be too much to naively process on RAM and often led to crashes:
-<img width="2202" height="389" alt="image" src="https://github.com/user-attachments/assets/5cbd2c0e-1b00-4452-9654-3346d4338e21" />
-
-
-Writing to drive on every iteration was successful, however, though the logic was O(n), the time costs of writing led to the 17 minute run time:
-<img width="2198" height="293" alt="image" src="https://github.com/user-attachments/assets/a764a35a-8cb0-4b36-9675-490f2ec1a04e" />
-
-
-Dask and Polar libraries can be used to chunk dataframes for processing, which may be considered for analysis purposes, but for this project, working with parquet files would be more efficient for handling and querying the data. Processing the files and converting to parquet was more than 50% faster compared to the CSV conversion. 
-<img width="2160" height="308" alt="image" src="https://github.com/user-attachments/assets/5b67d7dc-1214-4d53-b00c-9c231d12a20c" />
-
-
-For now, they will exist inside the bronze directory itself, but will likely need to be put in a subdirectory when scaling to other sources. All parquet files are named one-to-one to their JSON counterpart and the column schema is as intended.
-
+root
+ |-- name: string (nullable = true)
+ |-- collaborative: string (nullable = true)
+ |-- pid: long (nullable = true)
+ |-- modified_at: long (nullable = true)
+ |-- num_tracks: long (nullable = true)
+ |-- num_albums: long (nullable = true)
+ |-- num_followers: long (nullable = true)
+ |-- tracks: array (nullable = true)
+ |    |-- element: struct (containsNull = true)
+ |    |    |-- album_name: string (nullable = true)
+ |    |    |-- album_uri: string (nullable = true)
+ |    |    |-- artist_name: string (nullable = true)
+ |    |    |-- artist_uri: string (nullable = true)
+ |    |    |-- duration_ms: long (nullable = true)
+ |    |    |-- pos: long (nullable = true)
+ |    |    |-- track_name: string (nullable = true)
+ |    |    |-- track_uri: string (nullable = true)
+ |-- num_edits: long (nullable = true)
+ |-- duration_ms: long (nullable = true)
+ |-- num_artists: long (nullable = true)
+ |-- description: string (nullable = true)
+ 
 Silver layer in progress...
+ 
