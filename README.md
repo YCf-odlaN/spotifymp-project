@@ -14,8 +14,8 @@ Unlike at work, this runs locally and several architectural choices reflect that
   - Set HADOOP_HOME =C:\hadoop, add C:\hadoop\bin to PATH
   - Copy hadoop.dll to C:\Windows\System32 
 
-## Status
-Bronze layer ingestion complete. Spotify Million Playlist dataset (Download at https://www.aicrowd.com/challenges/spotify-million-playlist-dataset-challenge ) is 5.5gb and consists of 1000 json files, containing 1 million playlist metadata- as well as download source metadata. This is stored in data/
+## Bronze Layer
+Bronze layer ingestion complete. Spotify Million Playlist dataset (Download at https://www.aicrowd.com/challenges/spotify-million-playlist-dataset-challenge ) is 5.5gb and consists of 1000 json files, containing 1 million playlist metadata and dataset generation metadata. This is stored in data/
  
 2 tables seemed appropriate for bronze to correspond to the two objects "info" and "playlist" with key:value pairs in JSON format. Pandas library along with path and json modules were enough to get started, but soon reached a bottleneck when it took 17 minutes to loop, read, and write the data into bronze/ as csv files. There was also no way to use RAM to do one write invocation without crashing. 
  
