@@ -9,7 +9,7 @@ Unlike at work, this runs locally and several architectural choices reflect that
 ## Setup
 - PySpark 4.1.1 (Bundles its own spark distribution and Hadoop 3.4.2 jars)
 - JDK 17 Temurin - PySpark 4.x requires Java 17+
-- Windows Only: winutils.exe + hadoop.dll from cdarlint/winutils (3.3.6 build - newest available, and is stable across 3.3.x/3.3.x)
+- Windows Only: winutils.exe + hadoop.dll from cdarlint/winutils (3.3.6 build - newest available, and is stable across 3.3.x/3.4.x)
   - place in C:\hadoop\bin
   - Set HADOOP_HOME =C:\hadoop, add C:\hadoop\bin to PATH
   - Copy hadoop.dll to C:\Windows\System32 
