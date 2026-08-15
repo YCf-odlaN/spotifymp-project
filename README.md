@@ -1,0 +1,1 @@
+Moving raw bronze data to 2 parquet tables ---> info and playlist 
