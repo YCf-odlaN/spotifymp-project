@@ -148,6 +148,61 @@ Type casting- collaborative from string to boolean.
 ### Bridge Table Grain
 ('pid', 'track_uri') were the first candidates for a bridge key (to connect a track to its position in a playlist), but instances where a track repeats in a playlist are likely, breaking uniqueness on that pair. ('pid', 'pos') was used instead as a given position in a playlist maps to exactly one track. The resulting table holds 66 million rows.
 
+### Tables
+Playlist
+~~~
+root
+ |-- pid: long (nullable = true)
+ |-- name: string (nullable = true)
+ |-- collaborative: boolean (nullable = true)
+ |-- modified_at: long (nullable = true)
+ |-- num_tracks: long (nullable = true)
+ |-- num_albums: long (nullable = true)
+ |-- num_followers: long (nullable = true)
+ |-- num_edits: long (nullable = true)
+ |-- num_artists: long (nullable = true)
+ |-- duration_ms: long (nullable = true)
+ |-- description: string (nullable = true)
+ ~~~
+
+Track
+~~~
+playlist_t = emptystringconv(dfp)
+playlist_t = playlist_t.select("pid", \
+                        "name", \
+                        "collaborative", \
+                        "modified_at", \
+                        "num_tracks", \
+                        "num_albums", \
+                        "num_followers", \
+                        "num_edits",\
+                        "num_artists", \
+                        "duration_ms", \
+                        "description") \
+                        .withColumn("collaborative", F.col("collaborative").cast("boolean"))
+~~~
+
+Artist
+~~~
+root
+ |-- artist_uri: string (nullable = true)
+ |-- artist_name: string (nullable = true)
+ ~~~
+
+ Album
+ ~~~
+root
+ |-- album_uri: string (nullable = true)
+ |-- album_name: string (nullable = true)
+ ~~~
+
+pos_bridge
+~~~
+root
+ |-- pid: long (nullable = true)
+ |-- pos: long (nullable = true)
+ |-- track_uri: string (nullable = true)
+ ~~~
 
 ## Next Steps
 With silver complete, the next step is to select a recommendation model architecture before designing gold, since feature requirements for the model will drive aggregation and join logic that gold has to produce.
