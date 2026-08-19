@@ -167,19 +167,11 @@ root
 
 Track
 ~~~
-playlist_t = emptystringconv(dfp)
-playlist_t = playlist_t.select("pid", \
-                        "name", \
-                        "collaborative", \
-                        "modified_at", \
-                        "num_tracks", \
-                        "num_albums", \
-                        "num_followers", \
-                        "num_edits",\
-                        "num_artists", \
-                        "duration_ms", \
-                        "description") \
-                        .withColumn("collaborative", F.col("collaborative").cast("boolean"))
+root
+ |-- track_uri: string (nullable = true)
+ |-- track_name: string (nullable = true)
+ |-- artist_uri: string (nullable = true)
+ |-- duration_ms: long (nullable = true)
 ~~~
 
 Artist
@@ -187,14 +179,14 @@ Artist
 root
  |-- artist_uri: string (nullable = true)
  |-- artist_name: string (nullable = true)
- ~~~
+~~~
 
- Album
- ~~~
+Album
+~~~
 root
  |-- album_uri: string (nullable = true)
  |-- album_name: string (nullable = true)
- ~~~
+~~~
 
 pos_bridge
 ~~~
@@ -202,7 +194,7 @@ root
  |-- pid: long (nullable = true)
  |-- pos: long (nullable = true)
  |-- track_uri: string (nullable = true)
- ~~~
+~~~
 
 ## Next Steps
 With silver complete, the next step is to select a recommendation model architecture before designing gold, since feature requirements for the model will drive aggregation and join logic that gold has to produce.
