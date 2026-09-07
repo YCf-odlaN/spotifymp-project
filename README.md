@@ -1,1 +1,1 @@
-Moving raw bronze data to 2 parquet tables ---> info and playlist 
+Creating 2 parquet tables in Azure ---> info and playlist via raw json data
