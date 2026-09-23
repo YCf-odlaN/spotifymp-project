@@ -98,4 +98,4 @@ with gr.Blocks(title="MPD co-occurrence recommender") as demo:
     k.release(recommend, inputs=[seed, k], outputs=table)
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch() 

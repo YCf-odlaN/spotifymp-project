@@ -13,3 +13,4 @@ _SUCCESS
 _SUCCESS.crc
 silver/**/part-*
 bronze/**/part-*
+*.npz
