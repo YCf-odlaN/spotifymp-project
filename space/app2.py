@@ -1,0 +1,35 @@
+"""
+Spotify MPD - Co-Occurrence Recommender (Baseline App)
+
+Model: For seeded tracks (Initial Playlist),  
+"""
+import os
+import time
+
+import gradio as gr
+import numpy as np
+import pandas as pd
+from huggingface_hub import hf_hub_download
+from scipy.sparse import load_npz
+
+ARTIFACT_REPO = os.getenv("ARTIFACT_REPO", "odlanYCF/mpd-cooc-artifacts") #storing sparse matrix we create here
+HF_TOKEN = os.getenv("HF_TOKEN")
+LOCAL_DIR = os.getenv("ARTIFACT_DIR", "artifacts")
+
+def fetch (name: str) -> str:
+    """Ensuring the code path is the same to access X (the trained matrix stored as an npz file).
+       Will be referncing it locally or via hugging face artifact repo"""
+    local = os.path.join(LOCAL_DIR, name)
+    if os.path.exists(local):
+        return local
+    return hf_hub_download(ARTIFACT_REPO,name, repo_type="dataset", token=HF_TOKEN)
+
+t0 = time.time() #return the time in UTC format (seconds since epoch)
+X = load_npz(fetch("X.npz")).tocsr() #loading in the matrix
+XT = X.T.tocsr()
+meta = pd.read_parquet("tracks.parquet")
+assert len(meta) == X.shape[1], "metadata rows must equal matrix columns (index alignment control)"
+meta["search_key"] = meta["search_key"].astype("string[pyarrow]") #converting to pyarrow string data type to efficiently search
+print(f"loaded X={X.shape} nnz={X.nnz:,} in {time.time() - t0:.1f}s")
+
+
