@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 from huggingface_hub import hf_hub_download
 from scipy.sparse import load_npz
+from scoring import X , XT, meta, score, top_k
 
 # ZeroGPU hardware (free tier for Gradio Spaces) requires at least one @spaces.GPU function.
 # The recommender is CPU-only; this placeholder is never called. Guarded so local runs don't need `spaces`.
@@ -52,33 +53,34 @@ meta["search_key"] = meta["search_key"].astype("string[pyarrow]")   # substring 
 print(f"loaded X={X.shape} nnz={X.nnz:,} in {time.time() - t0:.1f}s")
 
 
-def search(query: str):
+def search(query: str, acc, selected):
     q = (query or "").strip().lower()
+    selected = [] or selected
     if len(q) < 2:
-        return gr.Dropdown(choices=[], value=None)
+        return gr.Dropdown(choices=acc, value=selected), acc
     hits = meta[meta["search_key"].str.contains(q, regex=False)].nlargest(15, "n_playlists")
     choices = [
         (f"{r.track_name} — {r.artist_name}  ({r.n_playlists:,} playlists)", int(r.track_idx))
         for r in hits.itertuples(index=False)
     ]
-    return gr.Dropdown(choices=choices, value=None)
+    sel = set(selected)
+    keep = [(label, idx) for label, idx in acc if idx in sel]
+    seen = {c[1] for c in keep}
+    merged = keep + [c for c in choices if c[1] not in seen]
+
+    return gr.Dropdown(choices=merged, value=selected), merged
 
 
 def recommend(track_idx, k):
-    if track_idx is None:
+    seeds = [int(t) for t in (track_idx or [])]
+    if not seeds:
         return pd.DataFrame()
-    i = int(track_idx)
-    pids = XT.indices[XT.indptr[i]:XT.indptr[i + 1]]      # playlists containing the seed: O(1) CSR row lookup
-    if pids.size == 0:
-        return pd.DataFrame({"note": ["seed track has no playlists in the training matrix"]})
-    co = np.asarray(X[pids].sum(axis=0)).ravel()           # per-track count over just those playlists
-    co[i] = 0                                              # never recommend the seed to itself
-    k = min(int(k), int((co > 0).sum()))
-    top = np.argpartition(-co, k - 1)[:k]
-    top = top[np.argsort(-co[top])]
+    co = score(seeds)         # per-track count over just those playlists
+    top = top_k(co, k)
+    if top.size == 0:
+        return pd.DataFrame({"note": ["no co-occurring tracks in the training matrix"]})
     out = meta.iloc[top][["track_name", "artist_name", "n_playlists"]].reset_index(drop=True)
     out.insert(0, "co_occurrence", co[top].astype(int))
-    out.insert(1, "share_of_seed_playlists", np.round(co[top] / pids.size, 3))
     return out
 
 
@@ -89,11 +91,12 @@ with gr.Blocks(title="MPD co-occurrence recommender") as demo:
         "`co_occurrence` = playlists containing both; `n_playlists` = the track's overall popularity."
     )
     query = gr.Textbox(label="Search track / artist (press Enter)", placeholder="e.g. bohemian rhapsody")
-    seed = gr.Dropdown(label="Seed track", choices=[], interactive=True)
+    seed = gr.Dropdown(label="Seed track", choices=[], multiselect=True, interactive=True)
     k = gr.Slider(5, 50, value=20, step=5, label="Number of recommendations")
     table = gr.Dataframe(label="Most co-occurring tracks", interactive=False)
+    choices_state = gr.State([])
 
-    query.submit(search, inputs=query, outputs=seed)
+    query.submit(search, inputs=[query, choices_state, seed], outputs=[seed, choices_state])
     seed.change(recommend, inputs=[seed, k], outputs=table)
     k.release(recommend, inputs=[seed, k], outputs=table)
 
