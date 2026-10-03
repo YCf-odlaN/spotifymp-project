@@ -14,7 +14,7 @@ def fetch(name: str) -> str:
     return hf_hub_download(ARTIFACT_REPO, name, repo_type="dataset", token=HF_TOKEN)
 
 #separating scoring and ranking, parameter will be track indices
-def score(seeds)-> np.ndarray: 
+def score(seeds, normalize=None)-> np.ndarray: 
     """Array-like of track indices -> length-T of co-occurence vector"""
     seeds = np.unique(np.asarray(seeds, dtype=np.int64))
     if seeds.size == 0:
@@ -22,8 +22,11 @@ def score(seeds)-> np.ndarray:
     assert (seeds >= 0).all() and (seeds < X.shape[1]).all(), "seed index out of range"
     pids = XT[seeds].indices #all playlist ids for given seeds (T x P) 
     co = np.asarray(X[pids].sum(axis=0)).ravel() #we're summing down the rows; X is p x t (this is what X * XT is doing)
+    if normalize == "cosine":
+        co = co / np.sqrt(np.maximum(n_playlists, 1))
     co[seeds] = 0 #seeded tracks are zeroed out, such that the same track is not recommended 
     return co
+
 
 def top_k(co , k) -> np.ndarray:
     """score the co-occurence vector -> k track indices, best first"""
@@ -41,6 +44,7 @@ LOCAL_DIR = os.getenv("ARTIFACT_DIR", "artifacts")
 X = load_npz(fetch("X.npz")).tocsr()        # playlists x tracks
 XT = X.T.tocsr()                            # tracks x playlists: row i = playlists containing track i
 meta = pd.read_parquet(fetch("tracks.parquet"))
+n_playlists = meta["n_playlists"].to_numpy().astype(np.float32)
 assert len(meta) == X.shape[1], "metadata rows must equal matrix columns (index alignment contract)"
 
 
